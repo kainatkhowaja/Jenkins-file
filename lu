@@ -1,0 +1,85 @@
+package main
+
+import (
+	"encoding/json"
+	//"fmt"
+	"math"
+	//"html/template"
+	"log"
+	"net/http"
+)
+
+type matrix struct {
+	increment int
+	ele  []float64
+}
+
+func identity(n int) *matrix {
+	m := &matrix{n, make([]float64, n*n)}
+	for ix := 0; ix < len(m.ele); ix += n + 1 {
+		m.ele[ix] = 1
+	}
+	return m
+}
+
+//code for LU
+func (a *matrix) LU() (L, U *matrix) {
+	n := a.increment
+	// make a nxn matrix with zeross as entry
+
+	L = identity(n)
+	U = identity(n)
+	for j, j1 := 0, 0; j < a.increment; j++ {
+		// Put 1s in diag of Lower Triangular matrix
+		L.ele[j1+j] = 1
+		for i, i1 := 0, 0; i <= j; i++ {
+			sum := 0.
+			for k, kj := 0, j; k < i; k++ {
+				sum += U.ele[kj] * L.ele[i1+k]
+				kj += a.increment
+			}
+			U.ele[i1+j] = a.ele[i1+j] - sum
+			i1 += a.increment
+		}
+		for i1 := j1; i1 < len(a.ele); i1 += a.increment {
+			sum := 0.
+			for k, kj := 0, j; k < j; k++ {
+				sum += U.ele[kj] * L.ele[i1+k]
+				kj += a.increment
+			}
+			L.ele[i1+j] = (a.ele[i1+j] - sum) / U.ele[j1+j]
+		}
+		j1 += a.increment
+	}
+	return
+}
+
+
+func main() {
+	//fmt.Print("\nHTMLServer : Service started : Host=localhost:8080\n")
+	http.HandleFunc("/matrix", solvematrix)
+	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	//inputmatrix := ([]byte("[5, 4, 8, 3, 5, 6, 9, 9, 9]"))
+}
+
+func solvematrix(w http.ResponseWriter, r *http.Request) {
+	m := []byte(r.FormValue("matrix"))
+	output1,output2 := inputMat(m)
+	w.Write(output1)
+	w.Write(output2)
+}
+
+func inputMat(m []byte) ([]byte,[]byte) {
+	var a1 matrix
+	json.Unmarshal(m, &a1.ele)
+	a1.increment = int(math.Sqrt(float64(len(a1.ele))))
+	//fmt.Println("inputmatrix=", a1)
+	L, U := a1.LU()
+	//fmt.Println("L=", L)
+	//fmt.Println("U=", U)
+	output1, _ := json.Marshal(L.ele)
+	output2, _ := json.Marshal(U.ele)
+	//myanswer:=fmt.Println("L=",output1,"and U=",output2)
+	return output1,output2
+}
